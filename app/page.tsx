@@ -10,66 +10,71 @@ import type { GameSetup, StoryData, QuestionsData, GameData } from "@/lib/types"
 
 type Step = "setup" | "loading-story" | "story" | "loading-questions" | "questions" | "loading-game" | "game";
 
-const STEP_ORDER: Step[] = ["setup", "story", "questions", "game"];
-
-const STEP_LABELS: Partial<Record<Step, string>> = {
-  story: "Story",
-  questions: "Questions",
-  game: "Game",
-};
-
 const LOADING_MESSAGES: Record<string, string[]> = {
   "loading-story": [
-    "Summoning story ingredients... ✨",
-    "Waking up the story wizard... 🧙‍♂️",
-    "Mixing words and imagination... 🌈",
-    "Painting your illustration... 🎨",
-    "Almost ready to read... 📖",
+    "Generating your story…",
+    "Crafting the narrative…",
+    "Creating the illustration…",
+    "Almost ready…",
   ],
   "loading-questions": [
-    "Brewing comprehension questions... 🧪",
-    "Thinking up tricky questions... 🤔",
-    "Making questions just for you... 📝",
+    "Writing comprehension questions…",
+    "Calibrating difficulty…",
+    "Preparing your quiz…",
   ],
   "loading-game": [
-    "Building your custom game... 🎮",
-    "Hiding words in the puzzle... 🔍",
-    "Creating a super fun challenge... ⭐",
+    "Building your game…",
+    "Hiding the words…",
+    "Almost there…",
   ],
 };
 
-function StepIndicator({ step }: { step: Step }) {
-  const steps: { key: Step; label: string; emoji: string }[] = [
-    { key: "story", label: "Story", emoji: "📖" },
-    { key: "questions", label: "Questions", emoji: "🧠" },
-    { key: "game", label: "Game", emoji: "🎮" },
-  ];
+const STEPS = [
+  { key: "story", label: "Story" },
+  { key: "questions", label: "Questions" },
+  { key: "game", label: "Game" },
+];
 
-  const activeIndex = steps.findIndex(
-    (s) =>
-      step === s.key ||
-      step === (`loading-${s.key === "story" ? "story" : s.key === "questions" ? "questions" : "game"}` as Step)
-  );
+function StepBar({ step }: { step: Step }) {
+  const loadingMap: Record<string, string> = {
+    "loading-story": "story",
+    "loading-questions": "questions",
+    "loading-game": "game",
+  };
+  const activeKey = loadingMap[step] ?? step;
+  const activeIdx = STEPS.findIndex((s) => s.key === activeKey);
 
   return (
-    <div className="flex items-center justify-center gap-2 mb-6">
-      {steps.map((s, i) => {
-        const isActive = step === s.key || step === (`loading-${s.key === "story" ? "story" : s.key === "questions" ? "questions" : "game"}` as Step);
-        const isDone = i < activeIndex;
+    <div className="flex items-center justify-center gap-3 mb-8">
+      {STEPS.map((s, i) => {
+        const done = i < activeIdx;
+        const active = i === activeIdx;
         return (
-          <div key={s.key} className="flex items-center">
-            <div
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-all duration-300 ${
-                isActive ? "step-active scale-110" : isDone ? "step-done" : "step-pending"
-              }`}
-            >
-              <span>{isDone ? "✓" : s.emoji}</span>
-              <span>{s.label}</span>
-            </div>
-            {i < steps.length - 1 && (
+          <div key={s.key} className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <div
-                className={`w-6 h-1 mx-1 rounded-full transition-all duration-300 ${
-                  isDone ? "bg-green-300" : "bg-gray-200"
+                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
+                  done
+                    ? "bg-success/15 border border-success/30 text-emerald-400"
+                    : active
+                    ? "bg-accent/15 border border-accent/40 text-accent-light"
+                    : "bg-white/4 border border-white/8 text-slate-600"
+                }`}
+              >
+                {done ? "✓" : i + 1}
+              </div>
+              <span
+                className={`text-xs font-medium transition-colors duration-300 ${
+                  done ? "text-emerald-500" : active ? "text-slate-200" : "text-slate-600"
+                }`}
+              >
+                {s.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                className={`w-8 h-px transition-colors duration-500 ${
+                  done ? "bg-success/30" : "bg-white/8"
                 }`}
               />
             )}
@@ -92,26 +97,18 @@ export default function Home() {
     setSetup(newSetup);
     setError(null);
     setStep("loading-story");
-
     try {
       const res = await fetch("/api/generate/story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gradeLevel: newSetup.gradeLevel,
-          topic: newSetup.topic,
-          sillinessLevel: newSetup.sillinessLevel,
-        }),
+        body: JSON.stringify({ gradeLevel: newSetup.gradeLevel, topic: newSetup.topic, sillinessLevel: newSetup.sillinessLevel }),
       });
-
-      if (!res.ok) throw new Error("Story generation failed");
       const data = await res.json() as StoryData & { error?: string };
       if (data.error) throw new Error(data.error);
-
       setStoryData(data);
       setStep("story");
-    } catch (e) {
-      setError("Oops! The story wizard had trouble. Please try again! 🧙‍♂️");
+    } catch {
+      setError("Story generation failed. Check your API key and try again.");
       setStep("setup");
     }
   };
@@ -120,27 +117,18 @@ export default function Home() {
     if (!setup || !storyData) return;
     setError(null);
     setStep("loading-questions");
-
     try {
       const res = await fetch("/api/generate/questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gradeLevel: setup.gradeLevel,
-          story: storyData.story,
-          title: storyData.title,
-          sillinessLevel: setup.sillinessLevel,
-        }),
+        body: JSON.stringify({ gradeLevel: setup.gradeLevel, story: storyData.story, title: storyData.title, sillinessLevel: setup.sillinessLevel }),
       });
-
-      if (!res.ok) throw new Error("Questions generation failed");
-      const data: QuestionsData = await res.json();
-      if ((data as { error?: string }).error) throw new Error((data as { error?: string }).error);
-
+      const data = await res.json() as QuestionsData & { error?: string };
+      if (data.error) throw new Error(data.error);
       setQuestionsData(data);
       setStep("questions");
-    } catch (e) {
-      setError("Oops! Couldn't create questions. Please try again! 📝");
+    } catch {
+      setError("Failed to generate questions. Please try again.");
       setStep("story");
     }
   };
@@ -149,26 +137,18 @@ export default function Home() {
     if (!setup || !storyData) return;
     setError(null);
     setStep("loading-game");
-
     try {
       const res = await fetch("/api/generate/game", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gradeLevel: setup.gradeLevel,
-          story: storyData.story,
-          title: storyData.title,
-        }),
+        body: JSON.stringify({ gradeLevel: setup.gradeLevel, story: storyData.story, title: storyData.title }),
       });
-
-      if (!res.ok) throw new Error("Game generation failed");
-      const data: GameData = await res.json();
-      if ((data as { error?: string }).error) throw new Error((data as { error?: string }).error);
-
+      const data = await res.json() as GameData & { error?: string };
+      if (data.error) throw new Error(data.error);
       setGameData(data);
       setStep("game");
-    } catch (e) {
-      setError("Oops! Couldn't build the game. Please try again! 🎮");
+    } catch {
+      setError("Failed to generate game. Please try again.");
       setStep("questions");
     }
   };
@@ -182,35 +162,29 @@ export default function Home() {
     setError(null);
   };
 
-  const showStepIndicator = !["setup", "loading-story"].includes(step);
+  const showStepBar = !["setup", "loading-story"].includes(step);
 
   return (
-    <main className="min-h-screen px-4 py-8 md:py-12">
-      <div className="max-w-2xl mx-auto">
-        {showStepIndicator && <StepIndicator step={step} />}
+    <main className="min-h-screen px-4 py-10 relative z-10">
+      <div className="max-w-xl mx-auto">
+        {showStepBar && <StepBar step={step} />}
 
         {error && (
-          <div className="mb-6 bg-red-50 border-2 border-red-200 rounded-2xl p-4 text-center">
-            <p className="text-red-600 font-medium">{error}</p>
+          <div className="mb-5 px-4 py-3 rounded-xl bg-danger/8 border border-danger/20 text-red-400 text-sm text-center">
+            {error}
           </div>
         )}
 
         {step === "setup" && <SetupForm onStart={handleStart} />}
-
-        {(step === "loading-story" ||
-          step === "loading-questions" ||
-          step === "loading-game") && (
-          <LoadingSpinner messages={LOADING_MESSAGES[step]} />
-        )}
-
+        {step === "loading-story" && <LoadingSpinner messages={LOADING_MESSAGES["loading-story"]} />}
         {step === "story" && storyData && setup && (
           <StoryDisplay story={storyData} setup={setup} onNext={handleStoryNext} />
         )}
-
+        {step === "loading-questions" && <LoadingSpinner messages={LOADING_MESSAGES["loading-questions"]} />}
         {step === "questions" && questionsData && (
           <QuestionsSection data={questionsData} onNext={handleQuestionsNext} />
         )}
-
+        {step === "loading-game" && <LoadingSpinner messages={LOADING_MESSAGES["loading-game"]} />}
         {step === "game" && gameData && setup && (
           <GameSection data={gameData} setup={setup} onPlayAgain={handlePlayAgain} />
         )}

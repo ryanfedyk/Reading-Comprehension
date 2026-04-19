@@ -1,141 +1,129 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { WordMatchGameData } from "@/lib/types";
-
-interface Props {
-  data: WordMatchGameData;
-}
 
 function shuffle<T>(arr: T[]): T[] {
   return [...arr].sort(() => Math.random() - 0.5);
 }
 
 const PAIR_COLORS = [
-  { bg: "bg-yellow-100", border: "border-yellow-400", text: "text-yellow-700", matched: "bg-yellow-200" },
-  { bg: "bg-green-100", border: "border-green-400", text: "text-green-700", matched: "bg-green-200" },
-  { bg: "bg-blue-100", border: "border-blue-400", text: "text-blue-700", matched: "bg-blue-200" },
-  { bg: "bg-pink-100", border: "border-pink-400", text: "text-pink-700", matched: "bg-pink-200" },
-  { bg: "bg-orange-100", border: "border-orange-400", text: "text-orange-700", matched: "bg-orange-200" },
-  { bg: "bg-purple-100", border: "border-purple-400", text: "text-purple-700", matched: "bg-purple-200" },
+  { accent: "#6366F1", bg: "rgba(99,102,241,0.12)", border: "rgba(99,102,241,0.4)" },
+  { accent: "#10B981", bg: "rgba(16,185,129,0.1)", border: "rgba(16,185,129,0.35)" },
+  { accent: "#F59E0B", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.35)" },
+  { accent: "#EC4899", bg: "rgba(236,72,153,0.1)", border: "rgba(236,72,153,0.35)" },
+  { accent: "#06B6D4", bg: "rgba(6,182,212,0.1)", border: "rgba(6,182,212,0.35)" },
+  { accent: "#8B5CF6", bg: "rgba(139,92,246,0.1)", border: "rgba(139,92,246,0.35)" },
 ];
 
-export default function WordMatchGame({ data }: Props) {
+export default function WordMatchGame({ data }: { data: WordMatchGameData }) {
   const [words] = useState(() => shuffle(data.pairs.map((p) => p.word)));
-  const [definitions] = useState(() => shuffle(data.pairs.map((p) => p.definition)));
-  const [selectedWord, setSelectedWord] = useState<string | null>(null);
-  const [selectedDef, setSelectedDef] = useState<string | null>(null);
+  const [defs] = useState(() => shuffle(data.pairs.map((p) => p.definition)));
+  const [selWord, setSelWord] = useState<string | null>(null);
+  const [selDef, setSelDef] = useState<string | null>(null);
   const [matched, setMatched] = useState<Map<string, number>>(new Map());
-  const [wrongPair, setWrongPair] = useState(false);
+  const [wrongFlash, setWrongFlash] = useState(false);
 
-  useEffect(() => {
-    if (!selectedWord || !selectedDef) return;
-
-    const pair = data.pairs.find(
-      (p) => p.word === selectedWord && p.definition === selectedDef
-    );
-
+  const checkMatch = (word: string | null, def: string | null) => {
+    if (!word || !def) return;
+    const pair = data.pairs.find((p) => p.word === word && p.definition === def);
     if (pair) {
       setMatched((prev) => {
         const next = new Map(prev);
-        next.set(selectedWord, next.size);
+        next.set(word, next.size % PAIR_COLORS.length);
         return next;
       });
-      setSelectedWord(null);
-      setSelectedDef(null);
     } else {
-      setWrongPair(true);
-      setTimeout(() => {
-        setWrongPair(false);
-        setSelectedWord(null);
-        setSelectedDef(null);
-      }, 800);
+      setWrongFlash(true);
+      setTimeout(() => setWrongFlash(false), 500);
     }
-  }, [selectedWord, selectedDef, data.pairs]);
+    setSelWord(null);
+    setSelDef(null);
+  };
 
-  const getWordColorIdx = (word: string) => matched.get(word) ?? -1;
-  const getDefColorIdx = (def: string) => {
-    const pair = data.pairs.find((p) => p.definition === def);
-    if (!pair) return -1;
-    return matched.get(pair.word) ?? -1;
+  const handleWord = (w: string) => {
+    if (matched.has(w)) return;
+    const next = selWord === w ? null : w;
+    setSelWord(next);
+    if (next && selDef) checkMatch(next, selDef);
+  };
+
+  const handleDef = (d: string) => {
+    const pair = data.pairs.find((p) => p.definition === d);
+    if (pair && matched.has(pair.word)) return;
+    const next = selDef === d ? null : d;
+    setSelDef(next);
+    if (selWord && next) checkMatch(selWord, next);
+  };
+
+  const getWordColor = (w: string) =>
+    matched.has(w) ? PAIR_COLORS[matched.get(w)!] : null;
+
+  const getDefColor = (d: string) => {
+    const pair = data.pairs.find((p) => p.definition === d);
+    return pair && matched.has(pair.word) ? PAIR_COLORS[matched.get(pair.word)!] : null;
   };
 
   const allMatched = matched.size === data.pairs.length;
 
-  const wordButtonStyle = (word: string) => {
-    const colorIdx = getWordColorIdx(word);
-    if (colorIdx >= 0) {
-      const c = PAIR_COLORS[colorIdx % PAIR_COLORS.length];
-      return `${c.matched} ${c.border} ${c.text} border-2 opacity-70`;
-    }
-    if (selectedWord === word) return "bg-purple-500 border-purple-500 text-white border-2 scale-105";
-    if (wrongPair && selectedWord === word) return "bg-red-100 border-red-400 text-red-700 border-2";
-    return "bg-white border-gray-200 text-gray-700 border-2 hover:border-purple-300 hover:bg-purple-50";
-  };
-
-  const defButtonStyle = (def: string) => {
-    const colorIdx = getDefColorIdx(def);
-    if (colorIdx >= 0) {
-      const c = PAIR_COLORS[colorIdx % PAIR_COLORS.length];
-      return `${c.matched} ${c.border} ${c.text} border-2 opacity-70`;
-    }
-    if (selectedDef === def) return "bg-pink-500 border-pink-500 text-white border-2 scale-105";
-    if (wrongPair && selectedDef === def) return "bg-red-100 border-red-400 text-red-700 border-2";
-    return "bg-white border-gray-200 text-gray-700 border-2 hover:border-pink-300 hover:bg-pink-50";
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <p className="text-gray-500 text-sm">{data.instructions}</p>
-        <p className="text-gray-400 text-xs mt-1">
-          Click a word on the left, then its meaning on the right
-        </p>
-      </div>
+    <div className="space-y-5">
+      <p className="text-xs text-slate-500">{data.instructions}</p>
 
-      {wrongPair && (
-        <div className="text-center animate-bounce">
-          <span className="bg-red-100 text-red-600 font-bold px-4 py-2 rounded-full">
-            ❌ Try again!
+      {wrongFlash && (
+        <div className="text-center animate-fade-in">
+          <span className="text-xs px-3 py-1 rounded-full bg-danger/10 border border-danger/20 text-red-400">
+            Not a match — try again
           </span>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        {/* Words column */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Words */}
         <div className="space-y-2">
-          <p className="text-center font-bold text-purple-600 text-sm uppercase tracking-wide mb-3">
-            Words
-          </p>
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Words</p>
           {words.map((word) => {
-            const isMatched = matched.has(word);
+            const color = getWordColor(word);
+            const isSelected = selWord === word;
             return (
               <button
                 key={word}
-                onClick={() => !isMatched && setSelectedWord(word)}
-                disabled={isMatched}
-                className={`w-full px-3 py-3 rounded-xl font-bold text-sm transition-all duration-150 ${wordButtonStyle(word)}`}
+                onClick={() => handleWord(word)}
+                disabled={!!color}
+                className="w-full text-left px-3 py-2.5 rounded-xl border text-sm font-medium transition-all duration-150"
+                style={
+                  color
+                    ? { backgroundColor: color.bg, borderColor: color.border, color: color.accent, opacity: 0.7 }
+                    : isSelected
+                    ? { backgroundColor: "rgba(99,102,241,0.15)", borderColor: "rgba(99,102,241,0.5)", color: "#818CF8" }
+                    : { backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)", color: "#94A3B8" }
+                }
               >
-                {isMatched ? "✓ " : ""}{word}
+                {color ? "✓ " : ""}{word}
               </button>
             );
           })}
         </div>
 
-        {/* Definitions column */}
+        {/* Definitions */}
         <div className="space-y-2">
-          <p className="text-center font-bold text-pink-600 text-sm uppercase tracking-wide mb-3">
-            Meanings
-          </p>
-          {definitions.map((def) => {
-            const pair = data.pairs.find((p) => p.definition === def);
-            const isMatched = pair ? matched.has(pair.word) : false;
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Meanings</p>
+          {defs.map((def) => {
+            const color = getDefColor(def);
+            const isSelected = selDef === def;
             return (
               <button
                 key={def}
-                onClick={() => !isMatched && setSelectedDef(def)}
-                disabled={isMatched}
-                className={`w-full px-3 py-3 rounded-xl text-sm transition-all duration-150 text-left ${defButtonStyle(def)}`}
+                onClick={() => handleDef(def)}
+                disabled={!!color}
+                className="w-full text-left px-3 py-2.5 rounded-xl border text-xs transition-all duration-150"
+                style={
+                  color
+                    ? { backgroundColor: color.bg, borderColor: color.border, color: color.accent, opacity: 0.7 }
+                    : isSelected
+                    ? { backgroundColor: "rgba(139,92,246,0.12)", borderColor: "rgba(139,92,246,0.45)", color: "#C084FC" }
+                    : { backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)", color: "#94A3B8" }
+                }
               >
                 {def}
               </button>
@@ -144,17 +132,14 @@ export default function WordMatchGame({ data }: Props) {
         </div>
       </div>
 
-      <div className="text-center text-sm text-gray-400">
-        Matched: {matched.size} of {data.pairs.length}
-      </div>
+      <p className="text-xs text-slate-600 text-center">
+        {matched.size} of {data.pairs.length} matched
+      </p>
 
       {allMatched && (
-        <div className="text-center bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6 border-2 border-yellow-200">
-          <div className="text-5xl mb-2">🌟</div>
-          <p className="font-display text-2xl text-orange-500">
-            You matched them all!
-          </p>
-          <p className="text-orange-400 mt-1">Outstanding vocabulary work!</p>
+        <div className="card p-5 text-center animate-slide-up">
+          <p className="font-display text-xl font-bold gradient-text mb-1">All matched!</p>
+          <p className="text-slate-500 text-sm">Great vocabulary work.</p>
         </div>
       )}
     </div>

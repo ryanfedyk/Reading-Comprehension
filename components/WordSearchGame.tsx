@@ -1,47 +1,37 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { generateWordSearchGrid, getCellsBetween } from "@/lib/wordSearch";
 import type { WordSearchGameData } from "@/lib/types";
 
-interface Props {
-  data: WordSearchGameData;
-}
-
 const FOUND_COLORS = [
-  "bg-yellow-300",
-  "bg-green-300",
-  "bg-blue-300",
-  "bg-pink-300",
-  "bg-orange-300",
-  "bg-purple-300",
-  "bg-teal-300",
-  "bg-red-300",
-  "bg-indigo-300",
-  "bg-lime-300",
+  { bg: "#6366F1", text: "#fff" },
+  { bg: "#10B981", text: "#fff" },
+  { bg: "#F59E0B", text: "#0F172A" },
+  { bg: "#EC4899", text: "#fff" },
+  { bg: "#06B6D4", text: "#0F172A" },
+  { bg: "#8B5CF6", text: "#fff" },
+  { bg: "#F97316", text: "#fff" },
+  { bg: "#84CC16", text: "#0F172A" },
 ];
 
-export default function WordSearchGame({ data }: Props) {
-  const [{ grid, placements }] = useState(() =>
-    generateWordSearchGrid(data.words, 12)
-  );
+export default function WordSearchGame({ data }: { data: WordSearchGameData }) {
+  const [{ grid, placements }] = useState(() => generateWordSearchGrid(data.words, 12));
   const [foundWords, setFoundWords] = useState<Map<string, number>>(new Map());
   const [selectedCells, setSelectedCells] = useState<[number, number][]>([]);
   const [startCell, setStartCell] = useState<[number, number] | null>(null);
-  const [shake, setShake] = useState(false);
   const [lastFound, setLastFound] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false);
 
   const placedWords = new Set(placements.map((p) => p.word));
 
-  const getCellFoundColor = useCallback(
-    (row: number, col: number): string | null => {
-      for (const [word, colorIdx] of Array.from(foundWords)) {
-        const placement = placements.find((p) => p.word === word);
-        if (placement?.cells.some(([r, c]) => r === row && c === col)) {
-          return FOUND_COLORS[colorIdx % FOUND_COLORS.length];
-        }
+  const getCellFoundIdx = useCallback(
+    (row: number, col: number): number => {
+      for (const [word, idx] of Array.from(foundWords)) {
+        const p = placements.find((pl) => pl.word === word);
+        if (p?.cells.some(([r, c]) => r === row && c === col)) return idx;
       }
-      return null;
+      return -1;
     },
     [foundWords, placements]
   );
@@ -55,91 +45,87 @@ export default function WordSearchGame({ data }: Props) {
       setSelectedCells([[row, col]]);
       return;
     }
-
     if (startCell[0] === row && startCell[1] === col) {
       setStartCell(null);
       setSelectedCells([]);
       return;
     }
-
     const cells = getCellsBetween(startCell, [row, col]);
     const word = cells.map(([r, c]) => grid[r][c]).join("");
     const wordRev = word.split("").reverse().join("");
-
     const matchFwd = placedWords.has(word) && !foundWords.has(word);
     const matchRev = placedWords.has(wordRev) && !foundWords.has(wordRev);
 
     if (matchFwd || matchRev) {
-      const matchedWord = matchFwd ? word : wordRev;
+      const matched = matchFwd ? word : wordRev;
       setFoundWords((prev) => {
         const next = new Map(prev);
-        next.set(matchedWord, next.size);
+        next.set(matched, next.size % FOUND_COLORS.length);
         return next;
       });
-      setLastFound(matchedWord);
+      setLastFound(matched);
       setTimeout(() => setLastFound(null), 2000);
     } else {
-      setShake(true);
-      setTimeout(() => setShake(false), 400);
+      setFlash(true);
+      setTimeout(() => setFlash(false), 300);
     }
-
     setStartCell(null);
     setSelectedCells([]);
   };
 
   const handleCellHover = (row: number, col: number) => {
     if (!startCell) return;
-    const cells = getCellsBetween(startCell, [row, col]);
-    setSelectedCells(cells);
+    setSelectedCells(getCellsBetween(startCell, [row, col]));
   };
 
   const allFound = foundWords.size === placedWords.size;
+  const cols = grid[0]?.length ?? 12;
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <p className="text-gray-500 text-sm">{data.instructions}</p>
-        <p className="text-gray-400 text-xs mt-1">
-          Click the first letter, then the last letter of a word
-        </p>
+    <div className="space-y-5">
+      {/* Toast */}
+      <div className="h-7 flex items-center justify-center">
+        {lastFound && (
+          <div className="animate-slide-up text-xs font-semibold px-3 py-1 rounded-full bg-success/15 border border-success/25 text-emerald-300">
+            Found: {lastFound}
+          </div>
+        )}
       </div>
 
-      {lastFound && (
-        <div className="text-center animate-bounce">
-          <span className="bg-yellow-100 text-yellow-700 font-bold px-4 py-2 rounded-full text-lg">
-            🎉 Found: {lastFound}!
-          </span>
-        </div>
-      )}
-
       {/* Grid */}
-      <div className={`flex justify-center ${shake ? "animate-wiggle" : ""}`}>
+      <div className="flex justify-center">
         <div
-          className="inline-grid gap-0.5 rounded-2xl overflow-hidden shadow-lg bg-purple-100 p-2"
-          style={{ gridTemplateColumns: `repeat(${grid[0]?.length ?? 12}, minmax(0, 1fr))` }}
+          className={`inline-grid gap-0.5 p-2 rounded-xl border transition-colors duration-150 ${
+            flash ? "border-danger/40 bg-danger/5" : "border-white/6 bg-white/2"
+          }`}
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
         >
           {grid.map((row, r) =>
             row.map((letter, c) => {
-              const foundColor = getCellFoundColor(r, c);
+              const foundIdx = getCellFoundIdx(r, c);
               const sel = isSelected(r, c);
-              const isStart =
-                startCell && startCell[0] === r && startCell[1] === c;
+              const isStart = startCell?.[0] === r && startCell?.[1] === c;
+              const foundColor = foundIdx >= 0 ? FOUND_COLORS[foundIdx] : null;
 
               return (
                 <button
                   key={`${r}-${c}`}
                   onClick={() => handleCellClick(r, c)}
                   onMouseEnter={() => handleCellHover(r, c)}
-                  className={`w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-xs md:text-sm font-bold rounded transition-all duration-100 select-none
-                    ${
-                      foundColor
-                        ? `${foundColor} text-gray-700`
-                        : sel
-                        ? isStart
-                          ? "bg-purple-500 text-white scale-110"
-                          : "bg-purple-300 text-purple-900"
-                        : "bg-white text-gray-700 hover:bg-purple-50"
-                    }`}
+                  className={`ws-cell w-7 h-7 ${
+                    foundColor
+                      ? "found"
+                      : sel
+                      ? isStart
+                        ? "selected ring-1 ring-accent"
+                        : "selected"
+                      : ""
+                  }`}
+                  style={
+                    foundColor
+                      ? { backgroundColor: foundColor.bg, color: foundColor.text }
+                      : undefined
+                  }
                 >
                   {letter}
                 </button>
@@ -150,39 +136,38 @@ export default function WordSearchGame({ data }: Props) {
       </div>
 
       {/* Word list */}
-      <div className="bg-white rounded-2xl p-4 shadow">
-        <h4 className="font-bold text-gray-600 text-sm mb-3 uppercase tracking-wide">
-          Find these words:
-        </h4>
+      <div>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
+          Words to Find
+        </p>
         <div className="flex flex-wrap gap-2">
           {Array.from(placedWords).map((word) => {
-            const found = foundWords.has(word);
-            const colorIdx = foundWords.get(word);
+            const foundIdx = foundWords.has(word) ? foundWords.get(word)! : -1;
+            const color = foundIdx >= 0 ? FOUND_COLORS[foundIdx] : null;
             return (
               <span
                 key={word}
-                className={`px-3 py-1 rounded-full text-sm font-bold transition-all duration-300 ${
-                  found
-                    ? `${FOUND_COLORS[(colorIdx ?? 0) % FOUND_COLORS.length]} text-gray-700 line-through opacity-70`
-                    : "bg-gray-100 text-gray-600"
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-300 ${
+                  color
+                    ? "line-through opacity-60"
+                    : "bg-white/4 border border-white/8 text-slate-300"
                 }`}
+                style={color ? { backgroundColor: color.bg + "22", color: color.bg, border: `1px solid ${color.bg}44` } : {}}
               >
-                {found ? "✓ " : ""}{word}
+                {word}
               </span>
             );
           })}
         </div>
-        <p className="text-xs text-gray-400 mt-3">
-          Found {foundWords.size} of {placedWords.size} words
+        <p className="text-xs text-slate-600 mt-2">
+          {foundWords.size} of {placedWords.size} found · Click first letter, then last letter
         </p>
       </div>
 
       {allFound && (
-        <div className="text-center bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6 border-2 border-yellow-200">
-          <div className="text-5xl mb-2">🏆</div>
-          <p className="font-display text-2xl text-yellow-600">
-            You found all the words!
-          </p>
+        <div className="card p-5 text-center animate-slide-up">
+          <p className="font-display text-xl font-bold gradient-text mb-1">All words found!</p>
+          <p className="text-slate-500 text-sm">Excellent vocabulary work.</p>
         </div>
       )}
     </div>
