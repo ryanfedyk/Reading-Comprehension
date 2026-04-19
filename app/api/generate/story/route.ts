@@ -52,7 +52,7 @@ Return ONLY this JSON object:
       throw new Error("Incomplete story response from AI");
     }
 
-    // Generate image with Imagen 3
+    // Generate image with Imagen 4
     let imageUrl: string | undefined;
     if (process.env.GEMINI_API_KEY) {
       try {
@@ -60,21 +60,19 @@ Return ONLY this JSON object:
         const styleDesc = IMAGE_STYLES[gradeLevel] ?? IMAGE_STYLES["4-5"];
         const fullPrompt = `${styleDesc}. ${storyData.imagePrompt} No text, letters, or words anywhere in the image. Safe and appropriate for children.`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-2.0-flash-preview-image-generation",
-          contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-          config: { responseModalities: ["IMAGE"] },
+        const response = await ai.models.generateImages({
+          model: "imagen-4.0-generate-001",
+          prompt: fullPrompt,
+          config: { numberOfImages: 1 },
         });
 
-        const parts = response.candidates?.[0]?.content?.parts ?? [];
-        for (const part of parts) {
-          if (part.inlineData?.data) {
-            imageUrl = `data:${part.inlineData.mimeType ?? "image/png"};base64,${part.inlineData.data}`;
-            break;
-          }
+        const imgBytes = response.generatedImages?.[0]?.image?.imageBytes;
+        const imgMime = response.generatedImages?.[0]?.image?.mimeType ?? "image/png";
+        if (imgBytes) {
+          imageUrl = `data:${imgMime};base64,${imgBytes}`;
         }
       } catch (imgErr) {
-        console.error("Imagen 3 error (non-fatal):", imgErr);
+        console.error("Imagen 4 error (non-fatal):", imgErr);
       }
     }
 
