@@ -60,19 +60,18 @@ Return ONLY this JSON object:
         const styleDesc = IMAGE_STYLES[gradeLevel] ?? IMAGE_STYLES["4-5"];
         const fullPrompt = `${styleDesc}. ${storyData.imagePrompt} No text, letters, or words anywhere in the image. Safe and appropriate for children.`;
 
-        const response = await ai.models.generateImages({
-          model: "imagen-3.0-generate-002",
-          prompt: fullPrompt,
-          config: {
-            numberOfImages: 1,
-            aspectRatio: "16:9",
-          },
+        const response = await ai.models.generateContent({
+          model: "gemini-2.0-flash-preview-image-generation",
+          contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+          config: { responseModalities: ["IMAGE"] },
         });
 
-        const imgBytes = response.generatedImages?.[0]?.image?.imageBytes;
-        if (imgBytes) {
-          const base64 = Buffer.from(imgBytes as unknown as Uint8Array).toString("base64");
-          imageUrl = `data:image/png;base64,${base64}`;
+        const parts = response.candidates?.[0]?.content?.parts ?? [];
+        for (const part of parts) {
+          if (part.inlineData?.data) {
+            imageUrl = `data:${part.inlineData.mimeType ?? "image/png"};base64,${part.inlineData.data}`;
+            break;
+          }
         }
       } catch (imgErr) {
         console.error("Imagen 3 error (non-fatal):", imgErr);
