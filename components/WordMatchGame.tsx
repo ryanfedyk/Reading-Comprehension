@@ -16,7 +16,7 @@ const PAIR_COLORS = [
   { accent: "#8B5CF6", bg: "rgba(139,92,246,0.1)", border: "rgba(139,92,246,0.35)" },
 ];
 
-export default function WordMatchGame({ data }: { data: WordMatchGameData }) {
+export default function WordMatchGame({ data, onComplete }: { data: WordMatchGameData; onComplete?: () => void }) {
   const [words] = useState(() => shuffle(data.pairs.map((p) => p.word)));
   const [defs] = useState(() => shuffle(data.pairs.map((p) => p.definition)));
   const [selWord, setSelWord] = useState<string | null>(null);
@@ -31,6 +31,7 @@ export default function WordMatchGame({ data }: { data: WordMatchGameData }) {
       setMatched((prev) => {
         const next = new Map(prev);
         next.set(word, next.size % PAIR_COLORS.length);
+        if (next.size === data.pairs.length) onComplete?.();
         return next;
       });
     } else {

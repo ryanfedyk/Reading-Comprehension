@@ -15,8 +15,8 @@ const FOUND_COLORS = [
   { bg: "#84CC16", text: "#0F172A" },
 ];
 
-export default function WordSearchGame({ data }: { data: WordSearchGameData }) {
-  const [{ grid, placements }] = useState(() => generateWordSearchGrid(data.words, 12));
+export default function WordSearchGame({ data, onComplete }: { data: WordSearchGameData; onComplete?: () => void }) {
+  const [{ grid, placements }] = useState(() => generateWordSearchGrid(data.words, 10));
   const [foundWords, setFoundWords] = useState<Map<string, number>>(new Map());
   const [selectedCells, setSelectedCells] = useState<[number, number][]>([]);
   const [startCell, setStartCell] = useState<[number, number] | null>(null);
@@ -61,6 +61,7 @@ export default function WordSearchGame({ data }: { data: WordSearchGameData }) {
       setFoundWords((prev) => {
         const next = new Map(prev);
         next.set(matched, next.size % FOUND_COLORS.length);
+        if (next.size === placedWords.size) onComplete?.();
         return next;
       });
       setLastFound(matched);
@@ -79,7 +80,7 @@ export default function WordSearchGame({ data }: { data: WordSearchGameData }) {
   };
 
   const allFound = foundWords.size === placedWords.size;
-  const cols = grid[0]?.length ?? 12;
+  const cols = grid[0]?.length ?? 10;
 
   return (
     <div className="space-y-5">
@@ -95,8 +96,8 @@ export default function WordSearchGame({ data }: { data: WordSearchGameData }) {
       {/* Grid */}
       <div className="flex justify-center">
         <div
-          className={`inline-grid gap-0.5 p-2 rounded-xl border transition-colors duration-150 ${
-            flash ? "border-danger/40 bg-danger/5" : "border-white/6 bg-white/2"
+          className={`inline-grid gap-1 p-3 rounded-2xl border transition-colors duration-150 ${
+            flash ? "border-danger/40 bg-danger/5" : "border-white/6 bg-surface"
           }`}
           style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
         >
@@ -112,7 +113,7 @@ export default function WordSearchGame({ data }: { data: WordSearchGameData }) {
                   key={`${r}-${c}`}
                   onClick={() => handleCellClick(r, c)}
                   onMouseEnter={() => handleCellHover(r, c)}
-                  className={`ws-cell w-7 h-7 ${
+                  className={`ws-cell w-10 h-10 text-sm ${
                     foundColor
                       ? "found"
                       : sel

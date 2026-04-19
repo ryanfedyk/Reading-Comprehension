@@ -3,14 +3,18 @@
 import { useState } from "react";
 import type { FillBlankGameData } from "@/lib/types";
 
-export default function FillBlankGame({ data }: { data: FillBlankGameData }) {
+export default function FillBlankGame({ data, onComplete }: { data: FillBlankGameData; onComplete?: () => void }) {
   const [answers, setAnswers] = useState<(string | null)[]>(Array(data.sentences.length).fill(null));
   const [revealed, setRevealed] = useState<boolean[]>(Array(data.sentences.length).fill(false));
 
   const handleSelect = (i: number, opt: string) => {
     if (revealed[i]) return;
     setAnswers((prev) => { const n = [...prev]; n[i] = opt; return n; });
-    setRevealed((prev) => { const n = [...prev]; n[i] = true; return n; });
+    setRevealed((prev) => {
+      const n = [...prev]; n[i] = true;
+      if (n.every(Boolean)) onComplete?.();
+      return n;
+    });
   };
 
   const correctCount = answers.filter((a, i) => a === data.sentences[i]?.answer).length;

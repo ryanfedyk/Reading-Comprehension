@@ -180,20 +180,20 @@ input[type="range"]::-moz-range-thumb {
   align-items: center;
   justify-content: center;
   font-family: 'Inter', monospace;
-  font-weight: 600;
-  font-size: 0.75rem;
-  border-radius: 6px;
+  font-weight: 700;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.1s;
   user-select: none;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.05);
-  color: #94A3B8;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #CBD5E1;
+  letter-spacing: 0.02em;
 }
 .ws-cell:hover {
-  background: rgba(99,102,241,0.15);
-  color: #E2E8F0;
-  border-color: rgba(99,102,241,0.3);
+  background: rgba(99,102,241,0.18);
+  color: #F1F5F9;
+  border-color: rgba(99,102,241,0.4);
 }
 .ws-cell.selected {
   background: rgba(99,102,241,0.3);

@@ -9,7 +9,7 @@ export interface GameSetup {
 export interface StoryData {
   title: string;
   story: string;
-  svg: string;
+  imageUrl?: string;
   readingLevel: string;
 }
 
