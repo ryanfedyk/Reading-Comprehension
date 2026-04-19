@@ -27,6 +27,12 @@ export async function POST(req: NextRequest) {
     const config = GRADE_CONFIGS[gradeLevel];
     const sillinessDesc = SILLINESS_DESCRIPTIONS[sillinessLevel];
 
+    const SETTINGS = ["underwater city","floating sky island","ancient forest","bustling marketplace","snowy mountain peak","underground cavern","futuristic space station","hidden garden","stormy coastline","enchanted library"];
+    const TWISTS = ["a case of mistaken identity","an unexpected friendship","a secret hidden in plain sight","a plan that goes hilariously wrong","a surprising talent discovered","help from an unlikely stranger","a race against time","everything turning out backwards","a wish with unintended consequences","trading places with someone else"];
+    const MOODS = ["hopeful and determined","nervous but brave","grumpy then grateful","curious and a little reckless","reluctant hero","overconfident then humbled","quietly clever","enthusiastically chaotic"];
+    const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
+    const seed = `[Unique story seed: setting=${pick(SETTINGS)}, twist=${pick(TWISTS)}, protagonist mood=${pick(MOODS)}, nonce=${Math.random().toString(36).slice(2, 8)}]`;
+
     const prompt = `You are a children's story generator. Create an engaging, age-appropriate story.
 
 Grade Level: ${gradeLevel} grade
@@ -35,6 +41,9 @@ Story Length: ${config.wordCount} words
 Sentence Style: ${config.sentenceComplexity}
 Vocabulary: ${config.vocabulary}
 Silliness: ${sillinessDesc}
+${seed}
+
+Incorporate the seed elements naturally — they are constraints to make this story unique, not a formula to state literally.
 
 Return ONLY this JSON object:
 {
