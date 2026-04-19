@@ -57,7 +57,44 @@ export interface WordMatchGameData {
   pairs: WordMatchPair[];
 }
 
-export type GameData = WordSearchGameData | FillBlankGameData | WordMatchGameData;
+export interface SequenceGameData {
+  gameType: "sequence";
+  title: string;
+  instructions: string;
+  events: string[];
+}
+
+export interface TrueFalseStatement {
+  statement: string;
+  answer: boolean;
+  explanation: string;
+}
+
+export interface TrueFalseGameData {
+  gameType: "true_false";
+  title: string;
+  instructions: string;
+  statements: TrueFalseStatement[];
+}
+
+export interface ScrambleSentence {
+  words: string[];
+}
+
+export interface SentenceScrambleGameData {
+  gameType: "sentence_scramble";
+  title: string;
+  instructions: string;
+  sentences: ScrambleSentence[];
+}
+
+export type GameData =
+  | WordSearchGameData
+  | FillBlankGameData
+  | WordMatchGameData
+  | SequenceGameData
+  | TrueFalseGameData
+  | SentenceScrambleGameData;
 
 export interface WordPlacement {
   word: string;
