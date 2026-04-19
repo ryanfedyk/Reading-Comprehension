@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { extractJSON } from "@/lib/promptHelpers";
+import { createAnthropicClient } from "@/lib/anthropic";
 import type { GameData } from "@/lib/types";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const GAME_GUIDANCE: Record<string, string> = {
   "K-1": 'Use "word_match" — match simple story words to short descriptions. Use 6 pairs with very simple 1-2 word definitions appropriate for kindergarten/1st grade.',
@@ -14,6 +12,7 @@ const GAME_GUIDANCE: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   try {
+    const client = createAnthropicClient();
     const { gradeLevel, story, title } = await req.json();
     const guidance = GAME_GUIDANCE[gradeLevel];
 

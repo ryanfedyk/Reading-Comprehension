@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { GRADE_CONFIGS, SILLINESS_DESCRIPTIONS, extractJSON } from "@/lib/promptHelpers";
+import { createAnthropicClient } from "@/lib/anthropic";
 import type { StoryData } from "@/lib/types";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: NextRequest) {
   try {
+    const client = createAnthropicClient();
     const { gradeLevel, topic, sillinessLevel } = await req.json();
     const config = GRADE_CONFIGS[gradeLevel];
     const sillinessDesc = SILLINESS_DESCRIPTIONS[sillinessLevel];
