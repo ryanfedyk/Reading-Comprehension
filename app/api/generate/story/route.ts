@@ -10,6 +10,23 @@ const IMAGE_STYLES: Record<string, string> = {
   "6-8": "polished editorial illustration, cinematic lighting, dramatic and vivid",
 };
 
+async function generateImageWithGemini(ai: GoogleGenAI, fullPrompt: string): Promise<string | undefined> {
+  // Try Gemini native image output (works with AI Studio keys)
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash-exp",
+    contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+    config: { responseModalities: ["IMAGE", "TEXT"] },
+  });
+
+  const parts = response.candidates?.[0]?.content?.parts ?? [];
+  for (const part of parts) {
+    if (part.inlineData?.data) {
+      return `data:${part.inlineData.mimeType ?? "image/png"};base64,${part.inlineData.data}`;
+    }
+  }
+  return undefined;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const client = createAnthropicClient();
@@ -52,27 +69,35 @@ Return ONLY this JSON object:
       throw new Error("Incomplete story response from AI");
     }
 
-    // Generate image with Imagen 4
     let imageUrl: string | undefined;
     if (process.env.GEMINI_API_KEY) {
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const styleDesc = IMAGE_STYLES[gradeLevel] ?? IMAGE_STYLES["4-5"];
-        const fullPrompt = `${styleDesc}. ${storyData.imagePrompt} No text, letters, or words anywhere in the image. Safe and appropriate for children.`;
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const styleDesc = IMAGE_STYLES[gradeLevel] ?? IMAGE_STYLES["4-5"];
+      const fullPrompt = `${styleDesc}. ${storyData.imagePrompt} No text, letters, or words anywhere in the image. Safe and appropriate for children.`;
 
+      // Strategy 1: Imagen 4 via generateImages
+      try {
         const response = await ai.models.generateImages({
           model: "imagen-4.0-generate-001",
           prompt: fullPrompt,
           config: { numberOfImages: 1 },
         });
-
         const imgBytes = response.generatedImages?.[0]?.image?.imageBytes;
         const imgMime = response.generatedImages?.[0]?.image?.mimeType ?? "image/png";
-        if (imgBytes) {
-          imageUrl = `data:${imgMime};base64,${imgBytes}`;
+        if (imgBytes) imageUrl = `data:${imgMime};base64,${imgBytes}`;
+      } catch (e1) {
+        console.error("[img] Imagen 4 failed:", (e1 as Error).message);
+
+        // Strategy 2: Gemini 2.0 Flash Exp with native image output
+        try {
+          imageUrl = await generateImageWithGemini(ai, fullPrompt);
+        } catch (e2) {
+          console.error("[img] Gemini image output failed:", (e2 as Error).message);
         }
-      } catch (imgErr) {
-        console.error("Imagen 4 error (non-fatal):", imgErr);
+      }
+
+      if (!imageUrl) {
+        console.warn("[img] All image generation strategies failed — story will render without image.");
       }
     }
 
