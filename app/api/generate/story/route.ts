@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import { GRADE_CONFIGS, SILLINESS_DESCRIPTIONS, extractJSON } from "@/lib/promptHelpers";
 import { createAnthropicClient } from "@/lib/anthropic";
 
 const IMAGE_STYLES: Record<string, string> = {
-  "K-1": "soft watercolor children's book illustration, gentle and whimsical",
-  "2-3": "colorful digital children's book illustration, vibrant and playful",
-  "4-5": "detailed editorial children's illustration, dynamic and expressive",
-  "6-8": "polished editorial illustration, cinematic lighting, rich colors",
+  "K-1": "soft watercolor children's book illustration, gentle and whimsical, pastel colors",
+  "2-3": "colorful digital children's book illustration, vibrant and playful, bright colors",
+  "4-5": "detailed editorial children's illustration, dynamic and expressive, rich colors",
+  "6-8": "polished editorial illustration, cinematic lighting, dramatic and vivid",
 };
 
 export async function POST(req: NextRequest) {
@@ -30,7 +30,7 @@ Return ONLY this JSON object:
 {
   "title": "A compelling story title",
   "story": "The complete story text (${config.wordCount} words). Use paragraph breaks. Engaging and perfectly matched to the grade level.",
-  "imagePrompt": "A concise 1-2 sentence description of the key scene to illustrate. Describe characters, setting, action, mood. No text in image. Child-appropriate.",
+  "imagePrompt": "A vivid 1-2 sentence description of the key scene to illustrate. Describe characters, setting, and action clearly. No text or words in the image. Child-appropriate.",
   "readingLevel": "One sentence describing the reading level."
 }`;
 
@@ -52,24 +52,30 @@ Return ONLY this JSON object:
       throw new Error("Incomplete story response from AI");
     }
 
-    // Generate image with DALL-E 3 in parallel if API key is available
+    // Generate image with Imagen 3
     let imageUrl: string | undefined;
-    if (process.env.OPENAI_API_KEY) {
+    if (process.env.GEMINI_API_KEY) {
       try {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
         const styleDesc = IMAGE_STYLES[gradeLevel] ?? IMAGE_STYLES["4-5"];
-        const fullPrompt = `${styleDesc}. ${storyData.imagePrompt} No text, letters, or words in the image. Safe for children.`;
+        const fullPrompt = `${styleDesc}. ${storyData.imagePrompt} No text, letters, or words anywhere in the image. Safe and appropriate for children.`;
 
-        const imageResponse = await openai.images.generate({
-          model: "dall-e-3",
+        const response = await ai.models.generateImages({
+          model: "imagen-3.0-generate-002",
           prompt: fullPrompt,
-          size: "1792x1024",
-          quality: "standard",
-          n: 1,
+          config: {
+            numberOfImages: 1,
+            aspectRatio: "16:9",
+          },
         });
-        imageUrl = imageResponse.data?.[0]?.url;
+
+        const imgBytes = response.generatedImages?.[0]?.image?.imageBytes;
+        if (imgBytes) {
+          const base64 = Buffer.from(imgBytes as unknown as Uint8Array).toString("base64");
+          imageUrl = `data:image/png;base64,${base64}`;
+        }
       } catch (imgErr) {
-        console.error("Image generation error (non-fatal):", imgErr);
+        console.error("Imagen 3 error (non-fatal):", imgErr);
       }
     }
 

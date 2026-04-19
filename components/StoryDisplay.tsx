@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import type { StoryData, GameSetup } from "@/lib/types";
 
 interface Props {
@@ -37,15 +36,13 @@ export default function StoryDisplay({ story, setup, onNext, questionsReady }: P
       {/* Illustration */}
       {story.imageUrl && (
         <div className="card overflow-hidden rounded-2xl">
-          <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-            <Image
-              src={story.imageUrl}
-              alt={story.title}
-              fill
-              className="object-cover"
-              unoptimized
-            />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={story.imageUrl}
+            alt={story.title}
+            className="w-full object-cover"
+            style={{ maxHeight: "320px" }}
+          />
         </div>
       )}
 
